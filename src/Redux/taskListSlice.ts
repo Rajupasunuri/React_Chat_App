@@ -2,11 +2,11 @@ import { createSlice } from "@reduxjs/toolkit";
 import { taskListType, taskType } from "../Types";
 
 export const defaultTaskList: taskListType = {
-  title: "Sample Task List",
+  title: "IFPD ",
 };
 export const defaultTask: taskType = {
-  title: "I'll do this at 9:00am",
-  description: "This is what I'll need to do in order to finish this",
+  title: "Section Name ",
+  description: "Description Here",
 };
 
 type taskListSliceType = {

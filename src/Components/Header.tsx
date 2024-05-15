@@ -59,44 +59,25 @@ function Header() {
   };
 
   return (
-    <div className="flex flex-wrap z-10 sm:flex-row gap-5 items-center justify-between drop-shadow-md bg-gradient-to-r from-myBlue to-myPink px-5 py-5 md:py-2 text-white">
+    <div className="flex flex-wrap z-10 sm:flex-row gap-5 items-center justify-between px-5 py-5 md:py-2 text-black">
       <img
-        className="w-[70px] drop-shadow-md cursor-pointer"
-        src={logo}
+        className="w-[150px] drop-shadow-md cursor-pointer"
+        src="https://crown-school-site.s3.ap-south-1.amazonaws.com/images/crown-logo_20062022_1655713713.png"
         alt="logo"
+        onClick={() => handleGoToPage("")}
       />
       <div className="flex flex-row-reverse md:flex-row items-center justify-center gap-5 flex-wrap">
-        {getCurrentPage() === "chat" ? (
-          <Icon
-            IconName={FiList}
-            onClick={() => handleGoToPage("")}
-            reduceOpacityOnHover={false}
-          />
-        ) : getCurrentPage() === "profile" ? (
+        {currentUser.userLevel === 1 ? (
           <>
-            <Icon
-              reduceOpacityOnHover={false}
-              IconName={FiList}
-              onClick={() => handleGoToPage("")}
-            />
-            <Icon
-              IconName={BsFillChatFill}
-              ping={hasNewMessage}
-              onClick={() => handleGoToPage("chat")}
-              reduceOpacityOnHover={false}
-            />
+            {getCurrentPage() === "" ? (
+              <>
+                <AddListBoard />
+
+              </>
+            ) : null}
+
           </>
-        ) : (
-          <>
-            <AddListBoard />
-            <Icon
-              IconName={BsFillChatFill}
-              ping={hasNewMessage}
-              onClick={() => handleGoToPage("chat")}
-              reduceOpacityOnHover={false}
-            />
-          </>
-        )}
+        ) : currentUser.userLevel === 2 ? null : null}
 
         <div className="group relative">
           <UserHeaderProfile user={currentUser} />

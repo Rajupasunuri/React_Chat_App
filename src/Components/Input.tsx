@@ -25,6 +25,7 @@ const Input = ({
       onChange={onChange}
       onKeyDown={onKeyDown}
       type={type}
+      required
       placeholder={`Enter ${name}`}
       disabled={disabled}
       className={`flex-1 placeholder-gray-300 bg-transparent px-3 py-1 border-2 border-gray-300 rounded-full ${className}`}

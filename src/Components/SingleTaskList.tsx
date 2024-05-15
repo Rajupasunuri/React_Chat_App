@@ -15,8 +15,8 @@ import {
   BE_saveTaskList,
   getTasksForTaskList,
 } from "../Backend/Queries";
-import { useDispatch } from "react-redux";
-import { AppDispatch } from "../Redux/store";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../Redux/store";
 import {
   collapseAllTask,
   taskListSwitchEditMode,
@@ -32,15 +32,17 @@ const SingleTaskList = forwardRef(
     { singleTaskList }: SingleTaskListPropTypes,
     ref: React.LegacyRef<HTMLDivElement> | undefined
   ) => {
+    const currentUser = useSelector((state: RootState) => state.user.currentUser);
     const { id, editMode, tasks = [], title } = singleTaskList;
     const [homeTitle, setHomeTitle] = useState(title);
     const [saveLoading, setSaveLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [deleteTasklist, setDeleteTasklist] = useState(0);
     const [addTaskLoading, setAddTaskLoading] = useState(false);
     const [tasksLoading, setTasksLoading] = useState(false);
     const [allCollapsed, setAllCollapsed] = useState(false);
     const dispatch = useDispatch<AppDispatch>();
-
+    // console.log('singleTaskList', tasks.length);
     useEffect(() => {
       // get tasks here
       if (id) getTasksForTaskList(dispatch, id, setTasksLoading);
@@ -55,6 +57,7 @@ const SingleTaskList = forwardRef(
         return setAllCollapsed(true);
       };
       checkAllCollapsed();
+      setDeleteTasklist(tasks.length);
     }, [tasks]);
 
     const handleSaveTaskListTitle = () => {
@@ -84,9 +87,9 @@ const SingleTaskList = forwardRef(
 
     return (
       <div ref={ref} className="relative">
-        <div className="bg-[#d3f0f9] w-full md:w-[400px] drop-shadow-md rounded-md min-h-[150px] overflow-hidden">
-          <div className="flex flex-wrap items-center justify-center md:gap-10 bg-gradient-to-tr from-myBlue to-myPink bg-opacity-70 p-3 text-white text-center">
-            {editMode ? (
+        <div className="bg-[#d3f0f9] w-full  drop-shadow-md rounded-md min-h-[150px] overflow-hidden">
+          <div className="flex flex-wrap items-center justify-center md:gap-10 bg-gradient-to-tr from-myBlue to-myBlue bg-opacity-70 p-3 text-white text-center">
+            {editMode && currentUser.userLevel === 1 ? (
               <input
                 value={homeTitle}
                 onKeyDown={(e) => checkEnterKey(e)}
@@ -98,8 +101,8 @@ const SingleTaskList = forwardRef(
               <p className="flex-1 text-left md:text-center">{title}</p>
             )}
 
-            <div>
-              <Icon
+            <>
+              {currentUser.userLevel === 1 ? (<Icon
                 IconName={editMode ? MdSave : MdEdit}
                 onClick={() =>
                   editMode
@@ -108,31 +111,38 @@ const SingleTaskList = forwardRef(
                 }
                 loading={editMode && saveLoading}
               />
+              ) : null}
+            </>
+            {deleteTasklist == 0 && currentUser.userLevel === 1 ? (
               <Icon
                 onClick={handleDelete}
                 IconName={MdDelete}
                 loading={deleteLoading}
               />
+            ) : null}
+            <>
               <Icon
                 onClick={handleCollapseClick}
                 IconName={MdKeyboardArrowDown}
                 className={`${allCollapsed ? "rotate-180" : "rotate-0"}`}
               />
-            </div>
+            </>
           </div>
           {tasksLoading ? (
             <TaskListTasksLoader />
           ) : (
-            id && <Tasks tasks={tasks || []} listId={id} />
+            id && <Tasks tasks={tasks || []} listId={id} catName={title} />
           )}
         </div>
-        <Icon
-          onClick={handleAddTask}
-          IconName={MdAdd}
-          className="absolute -mt-6 -ml-4 p-3 drop-shadow-lg"
-          reduceOpacityOnHover={false}
-          loading={addTaskLoading}
-        />
+        {currentUser.userLevel === 1 ? (
+          <Icon
+            onClick={handleAddTask}
+            IconName={MdAdd}
+            className="absolute -mt-10  p-3 drop-shadow-lg"
+            reduceOpacityOnHover={false}
+            loading={addTaskLoading}
+          />
+        ) : null}
       </div>
     );
   }

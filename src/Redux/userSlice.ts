@@ -12,6 +12,7 @@ export const defaultUser: userType = {
   creationTime: "",
   lastSeen: "",
   bio: "",
+  userLevel: 0,
 };
 type userStateType = {
   users: userType[];

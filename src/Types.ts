@@ -14,6 +14,7 @@ export type userType = {
   creationTime?: string;
   lastSeen?: string;
   bio?: string;
+  userLevel: number;
 };
 
 export type taskListType = {
@@ -21,6 +22,12 @@ export type taskListType = {
   title: string;
   editMode?: boolean;
   tasks?: taskType[];
+};
+
+export type videoListType = {
+  id?: string;
+  video: string;
+  editMode?: boolean;
 };
 
 export type taskType = {
@@ -46,4 +53,26 @@ export type messageType = {
   content: string;
   createdAt?: string;
   id?: string;
+};
+
+export type categoryListType = {
+  id?: string;
+  category: string;
+};
+export type subcategoryListType = {
+  id?: string;
+  subcategory: string;
+};
+
+export type formDataType = {
+  id?: string;
+  title: string;
+  description: string;
+  Video_url: string;
+};
+export type videoType = {
+  id?: string;
+  title: string;
+  description: string;
+  Video_url: string;
 };

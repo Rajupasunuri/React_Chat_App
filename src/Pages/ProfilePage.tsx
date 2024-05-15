@@ -124,12 +124,12 @@ function ProfilePage() {
           onClick={handleSaveProfile}
           loading={saveProfileLoading}
         />
-        <Button
+        {/* <Button
           text="Delete Account"
           onClick={handleDeleteAccount}
           secondary
           loading={deleteAccLoading}
-        />
+        /> */}
       </div>
     </div>
   );

@@ -11,12 +11,16 @@ import { toastErr, toastSucc } from "../utils/toast";
 import CatchErr from "../utils/catchErr";
 import {
   authDataType,
+  categoryListType,
   chatType,
   messageType,
   setLoadingType,
   taskListType,
   taskType,
   userType,
+  subcategoryListType,
+  formDataType,
+  videoType,
 } from "../Types";
 import { NavigateFunction } from "react-router";
 import {
@@ -66,6 +70,9 @@ const tasksColl = "tasks";
 const taskListColl = "taskList";
 const chatsColl = "chats";
 const messagesColl = "messages";
+const categoryColl = "categoryList";
+const subCategory = "subCategoryList";
+const subcatvideo = "video";
 
 // register or signup a user
 export const BE_signUp = (
@@ -93,9 +100,10 @@ export const BE_signUp = (
             user.uid,
             user.email || "",
             user.email?.split("@")[0] || "",
-            imgLink
+            imgLink,
+            2
           );
-          console.log("hello");
+          console.log("User Added", userInfo);
           // set user in store
           dispatch(setUser(userInfo));
 
@@ -131,7 +139,7 @@ export const BE_signIn = (
 
       // get user info
       const userInfo = await getUserInfo(user.uid);
-
+      console.log('userInfo', userInfo);
       // set user in store
       dispatch(setUser(userInfo));
 
@@ -277,7 +285,7 @@ export const BE_getAllUsers = async (
     let users: userType[] = [];
 
     usersSnapshot.forEach((user) => {
-      const { img, isOnline, username, email, bio, creationTime, lastSeen } =
+      const { img, isOnline, username, email, bio, creationTime, lastSeen, userLevel } =
         user.data();
       users.push({
         id: user.id,
@@ -292,6 +300,7 @@ export const BE_getAllUsers = async (
         lastSeen: lastSeen
           ? ConvertTime(lastSeen.toDate())
           : "no date yet: all users lastseen",
+        userLevel
       });
     });
 
@@ -314,7 +323,7 @@ export const getUserInfo = async (
   const user = await getDoc(userRef);
 
   if (user.exists()) {
-    const { img, isOnline, username, email, bio, creationTime, lastSeen } =
+    const { img, isOnline, username, email, bio, creationTime, lastSeen, userLevel } =
       user.data();
 
     if (setLoading) setLoading(false);
@@ -332,6 +341,7 @@ export const getUserInfo = async (
       lastSeen: lastSeen
         ? ConvertTime(lastSeen.toDate())
         : "no date yet: userinfo",
+      userLevel
     };
   } else {
     if (setLoading) setLoading(false);
@@ -345,12 +355,14 @@ const addUserToCollection = async (
   id: string,
   email: string,
   username: string,
-  img: string
+  img: string,
+  userLevel: number
 ) => {
   // create user with userId
   await setDoc(doc(db, usersColl, id), {
     isOnline: true,
     img,
+    userLevel,
     username,
     email,
     creationTime: serverTimestamp(),
@@ -402,26 +414,44 @@ export const BE_addTaskList = async (
   setLoading: setLoadingType
 ) => {
   setLoading(true);
-  const { title } = defaultTaskList;
-  const list = await addDoc(collection(db, taskListColl), {
-    title,
-    userId: getStorageUser().id,
-  });
+  let { title } = defaultTaskList;
+  const catRef = collection(db, taskListColl);
+  const tasklist = await getDocs(collection(db, taskListColl));
+  const tasklistcnt = tasklist.size + 1;
+  title = title + "" + tasklistcnt;
 
-  const newDocSnap = await getDoc(doc(db, list.path));
+  const q = query(catRef, where("title", "==", title));
 
-  if (newDocSnap.exists()) {
-    const newlyAddedDoc: taskListType = {
-      id: newDocSnap.id,
-      title: newDocSnap.data().title,
-    };
-
-    dispatch(addTaskList(newlyAddedDoc));
+  const existing = await getDocs(q);
+  if (!existing.empty) {
+    toastErr("Category Already Exist!");
     setLoading(false);
   } else {
-    toastErr("BE_addTaskList:No such doc");
-    setLoading(false);
+    // toastErr(title);
+    const list = await addDoc(collection(db, taskListColl), {
+      title,
+      userId: getStorageUser().id,
+    });
+
+    const newDocSnap = await getDoc(doc(db, list.path));
+
+    if (newDocSnap.exists()) {
+      const newlyAddedDoc: taskListType = {
+        id: newDocSnap.id,
+        title: newDocSnap.data().title,
+      };
+
+      dispatch(addTaskList(newlyAddedDoc));
+      setLoading(false);
+    } else {
+      toastErr("No such Category!");
+      setLoading(false);
+    }
+
   }
+
+
+
 };
 
 // get all task list
@@ -448,17 +478,56 @@ export const BE_saveTaskList = async (
   title: string
 ) => {
   setLoading(true);
+  // toastErr(title);
+  const catRef = collection(db, taskListColl);
+  const q = query(catRef, where("title", "==", title));
 
-  await updateDoc(doc(db, taskListColl, listId), { title });
+  const existing = await getDocs(q);
 
-  const updatedTaskList = await getDoc(doc(db, taskListColl, listId));
 
-  setLoading(false);
 
-  // dispatch to save task list
-  dispatch(
-    saveTaskListTitle({ id: updatedTaskList.id, ...updatedTaskList.data() })
-  );
+  if (!existing.empty) {
+    console.log(existing.docs[0].data());
+    console.log(existing.docs[0].id);
+    console.log(existing.docs.length);
+    console.log(existing.docs[0].data().userId);
+    console.log(listId);
+    if (existing.docs.length == 1) {
+      if (existing.docs[0].id == listId) {
+        await updateDoc(doc(db, taskListColl, listId), { title });
+
+        const updatedTaskList = await getDoc(doc(db, taskListColl, listId));
+
+        setLoading(false);
+        toastSucc("Category Saved");
+        // dispatch to save task list
+        dispatch(
+          saveTaskListTitle({ id: updatedTaskList.id, ...updatedTaskList.data() })
+        );
+      } else {
+        toastErr("Category Already Exist!");
+        setLoading(false);
+      }
+    } else {
+      toastErr("Category Already Exist!");
+      setLoading(false);
+    }
+
+  } else {
+
+    await updateDoc(doc(db, taskListColl, listId), { title });
+
+    const updatedTaskList = await getDoc(doc(db, taskListColl, listId));
+
+    setLoading(false);
+    toastSucc("Category Saved");
+    // dispatch to save task list
+    dispatch(
+      saveTaskListTitle({ id: updatedTaskList.id, ...updatedTaskList.data() })
+    );
+
+  }
+
 };
 
 // delete task list
@@ -494,7 +563,7 @@ export const BE_deleteTaskList = async (
 // get all users taskList
 const getAllTaskList = async () => {
   const id = getStorageUser().id;
-  const q = query(collection(db, taskListColl), where("userId", "==", id));
+  const q = query(collection(db, taskListColl), orderBy('title', 'asc'));
 
   const taskListSnapshot = await getDocs(q);
   const taskList: taskListType[] = [];
@@ -542,26 +611,87 @@ export const BE_addTask = async (
   setLoading: setLoadingType
 ) => {
   setLoading(true);
+  let taskDtls = { title: 'Section Name ', description: 'Description Here' };
+  console.log('add task', taskDtls.title);
+  let task_title = taskDtls.title;
 
-  const task = await addDoc(collection(db, taskListColl, listId, tasksColl), {
-    ...defaultTask,
-  });
+  const taskk = await getDocs(collection(db, taskListColl, listId, tasksColl));
+  const taskkcnt = taskk.size + 1;
+  task_title = task_title + "" + taskkcnt;
+  taskDtls['title'] = task_title;
+  console.log('add taskk', taskk);
+  console.log('taskkcnt', taskkcnt);
 
-  const newTaskSnapShot = await getDoc(doc(db, task.path));
+  const secRef = collection(db, taskListColl, listId, tasksColl);
+  const q = query(secRef, where("title", "==", task_title));
 
-  if (newTaskSnapShot.exists()) {
-    const { title, description } = newTaskSnapShot.data();
-    const newTask: taskType = {
-      id: newTaskSnapShot.id,
-      title,
-      description,
-    };
-    // add in store
-    dispatch(addTask({ listId, newTask }));
-    setLoading(false);
+  const existing = await getDocs(q);
+
+  console.log('task_title', task_title);
+  // console.log('taskkcnt', taskkcnt);
+  // console.log('taskk existing', existing); 
+
+
+  if (!existing.empty) {
+
+    console.log(existing.docs.length);
+    console.log(listId);
+    let istask = 0;
+    await existing.forEach((task) => {
+      const { title, description } = task.data();
+      if (task_title == title) {
+        istask++;
+      }
+      console.log("title task", title);
+    });
+
+    if (istask == 0) {
+      const task = await addDoc(collection(db, taskListColl, listId, tasksColl), {
+        ...taskDtls,
+      });
+      const newTaskSnapShot = await getDoc(doc(db, task.path));
+      if (newTaskSnapShot.exists()) {
+        const { title, description } = newTaskSnapShot.data();
+        const newTask: taskType = {
+          id: newTaskSnapShot.id,
+          title,
+          description,
+        };
+        // add in store
+        dispatch(addTask({ listId, newTask }));
+        setLoading(false);
+
+
+      } else {
+        toastErr("BE_addTask: No such document");
+        setLoading(false);
+      }
+    } else {
+      toastErr("Section Already Exist!");
+      setLoading(false);
+    }
+
   } else {
-    toastErr("BE_addTask: No such document");
-    setLoading(false);
+    const task = await addDoc(collection(db, taskListColl, listId, tasksColl), {
+      ...taskDtls,
+    });
+    const newTaskSnapShot = await getDoc(doc(db, task.path));
+    if (newTaskSnapShot.exists()) {
+      const { title, description } = newTaskSnapShot.data();
+      const newTask: taskType = {
+        id: newTaskSnapShot.id,
+        title,
+        description,
+      };
+      // add in store
+      dispatch(addTask({ listId, newTask }));
+      setLoading(false);
+
+
+    } else {
+      toastErr("BE_addTask: No such document");
+      setLoading(false);
+    }
   }
 };
 
@@ -573,20 +703,85 @@ export const BE_saveTask = async (
   setLoading: setLoadingType
 ) => {
   setLoading(true);
-  const { id, title, description } = data;
-
+  let { id, title, description } = data;
+  console.log('start');
   if (id) {
-    const taskRef = doc(db, taskListColl, listId, tasksColl, id);
-    await updateDoc(taskRef, { title, description });
+    console.log('if id is already');
+    ////////////////Start////////////////
 
-    const updatedTask = await getDoc(taskRef);
 
-    if (updatedTask.exists()) {
-      setLoading(false);
-      // dispatch
-      dispatch(saveTask({ listId, id: updatedTask.id, ...updatedTask.data() }));
-    } else toastErr("BE_saveTask: updated task not found");
-  } else toastErr("BE_saveTask: id not found");
+    const taskk = await getDocs(collection(db, taskListColl, listId, tasksColl));
+    const taskkcnt = taskk.size + 1;
+
+    console.log('taskkcnt', taskkcnt);
+
+    const secRef = collection(db, taskListColl, listId, tasksColl);
+    const q = query(secRef, where("title", "==", title));
+
+    const existing = await getDocs(q);
+
+    console.log('task_title', title);
+
+    if (!existing.empty) {
+      console.log('has tasks', existing.docs.length);
+      console.log(existing.docs.length);
+      console.log(listId);
+      let istask = 0;
+      let task_title = title;
+      await existing.forEach((task) => {
+        const { title, description } = task.data();
+        if (task_title == title && id != task.id) {
+          istask++;
+        }
+        console.log("title task", title);
+        console.log('in the loop');
+      });
+
+      if (istask == 0) {
+        console.log('task not matched');
+        const taskRef = doc(db, taskListColl, listId, tasksColl, id);
+        await updateDoc(taskRef, { title, description });
+
+        const updatedTask = await getDoc(taskRef);
+        console.log('updatedTask ', updatedTask);
+
+        if (updatedTask.exists()) {
+          console.log('updated Section ');
+          setLoading(false);
+          toastSucc("Updated Section");
+          // dispatch
+          dispatch(saveTask({ listId, id: updatedTask.id, ...updatedTask.data() }));
+        } else toastErr("updated Section not found");
+      } else {
+        toastErr("Section Already Exist!");
+        setLoading(false);
+      }
+
+    } else {
+      const taskRef = doc(db, taskListColl, listId, tasksColl, id);
+      await updateDoc(taskRef, { title, description });
+
+      const updatedTask = await getDoc(taskRef);
+      console.log('updatedTask ', updatedTask);
+
+      if (updatedTask.exists()) {
+        console.log('updated Section ');
+        setLoading(false);
+        // dispatch
+        dispatch(saveTask({ listId, id: updatedTask.id, ...updatedTask.data() }));
+      } else {
+        setLoading(false);
+        toastErr("updated Section not found");
+      }
+    }
+    ////////////////end////////////////
+
+
+  } else {
+    console.log('no id available');
+    toastErr("id not found");
+    setLoading(false);
+  }
 };
 
 // get tasks for task list
@@ -599,7 +794,8 @@ export const getTasksForTaskList = async (
 
   // get tasks in a single task list
   const taskRef = collection(db, taskListColl, listId, tasksColl);
-  const tasksSnapshot = await getDocs(taskRef);
+  const q = query(taskRef, orderBy('title', 'asc'));
+  const tasksSnapshot = await getDocs(q);
   const tasks: taskType[] = [];
 
   // if the tasks snap shot is not empty then do foreach
@@ -800,4 +996,296 @@ const updateLastMsg = async (chatId: string, lastMsg: string) => {
     lastMsg,
     updatedAt: serverTimestamp(),
   });
+};
+
+export const BE_addCategoryList = async (
+  dispatch: AppDispatch,
+  setLoading: setLoadingType,
+  category: string
+) => {
+  setLoading(true);
+  //const { title } = defaultTaskList;
+  const list = await addDoc(collection(db, categoryColl), {
+    category,
+    // userId: getStorageUser().id,
+  });
+
+  const newDocSnap = await getDoc(doc(db, list.path));
+  setLoading(false);
+  if (newDocSnap.exists()) {
+    const newlyAddedDoc: categoryListType = {
+      id: newDocSnap.id,
+      category: newDocSnap.data().category,
+    };
+    console.log("categoryadded", newlyAddedDoc);
+    // dispatch(addTaskList(newlyAddedDoc));
+    setLoading(false);
+  } else {
+    toastErr("BE_addTaskList:No such doc");
+    setLoading(false);
+  }
+};
+
+export const BE_getCategoryList = async (
+  dispatch: AppDispatch,
+  setLoading: setLoadingType
+) => {
+  setLoading(true);
+
+  if (getStorageUser().id) {
+    // get user task list
+    const catList = await getAllCategoryList();
+
+    console.log("getcatlist", catList);
+
+    //dispatch(setTaskList(taskList));
+    setLoading(false);
+    return catList;
+  }
+};
+
+//sub category
+
+export const BE_addSubCat = async (
+  dispatch: AppDispatch,
+  listId: string,
+  setLoading: setLoadingType,
+  subcategory: string
+) => {
+  setLoading(true);
+
+  const task = await addDoc(collection(db, categoryColl, listId, subCategory), {
+    subcategory,
+  });
+
+  const newTaskSnapShot = await getDoc(doc(db, task.path));
+
+  if (newTaskSnapShot.exists()) {
+    const { subcategory } = newTaskSnapShot.data();
+    const newTask: subcategoryListType = {
+      id: newTaskSnapShot.id,
+      subcategory,
+    };
+
+    console.log("subcategoryadded", newTask);
+    // add in store
+    //  dispatch(addTask({ listId, newTask }));
+    setLoading(false);
+  } else {
+    toastErr("BE_addTask: No such document");
+    setLoading(false);
+  }
+};
+
+//get all sub cat
+
+// export const BE_getSubCategoryList = async (
+//   dispatch: AppDispatch,
+//   setLoading: setLoadingType,
+//   listId:string
+// ) => {
+//   setLoading(true);
+
+//   if (getStorageUser().id) {
+//     // get user task list
+//     const subcatList = await getAllSubCategoryList();
+
+//     console.log("subgetcatlist", subcatList);
+
+//     //dispatch(setTaskList(taskList));
+//     setLoading(false);
+//     return subcatList;
+//   }
+// };
+
+///
+export const BE_getSubCategoryList = async (
+  dispatch: AppDispatch,
+  listId: string,
+  setLoading: setLoadingType
+) => {
+  setLoading(true);
+
+  // get tasks in a single task list
+  const taskRef = collection(db, categoryColl, listId, subCategory);
+  const tasksSnapshot = await getDocs(taskRef);
+  const tasks: subcategoryListType[] = [];
+
+  // if the tasks snap shot is not empty then do foreach
+  if (!tasksSnapshot.empty) {
+    tasksSnapshot.forEach((task) => {
+      const { subcategory } = task.data();
+      tasks.push({
+        id: task.id,
+        subcategory,
+      });
+    });
+  }
+
+  //dispatch(setTaskListTasks({ listId, tasks }));
+  setLoading(false);
+
+  return tasks;
+};
+
+////
+
+const getAllCategoryList = async () => {
+  const id = getStorageUser().id;
+  const q = query(collection(db, categoryColl));
+
+  const taskListSnapshot = await getDocs(q);
+  const categoryList: categoryListType[] = [];
+
+  taskListSnapshot.forEach((doc) => {
+    const { category } = doc.data();
+    categoryList.push({
+      id: doc.id,
+      category,
+    });
+  });
+
+  return categoryList;
+};
+
+const getAllSubCategoryList = async () => {
+  const id = getStorageUser().id;
+  const q = query(collection(db, subCategory));
+
+  const subCatListSnapshot = await getDocs(q);
+  const subcategoryList: subcategoryListType[] = [];
+
+  subCatListSnapshot.forEach((doc) => {
+    const { subcategory } = doc.data();
+    subcategoryList.push({
+      id: doc.id,
+      subcategory,
+    });
+  });
+
+  return subcategoryList;
+};
+
+export const BE_formdata = async (
+  dispatch: AppDispatch,
+  listId: string,
+  catid: string,
+  data: formDataType,
+  setLoading: setLoadingType
+) => {
+  setLoading(true);
+  const { title, description, Video_url } = data;
+
+  const subCategoryRef = doc(db, categoryColl, catid, subCategory, listId);
+
+  // Use the 'addDoc' function to add a document to the 'subcatvideo' subcollection within 'subCategory'
+  //const newSubcatvideoDocRef = await addDoc(collection(subCategoryRef, "subcatvideo")
+  const task = await addDoc(collection(subCategoryRef, subcatvideo), {
+    title,
+    description,
+    Video_url,
+  });
+
+  const newTaskSnapShot = await getDoc(doc(db, task.path));
+  if (newTaskSnapShot.exists()) {
+    const { title, description, Video_url } = newTaskSnapShot.data();
+    const newTask: formDataType = {
+      id: newTaskSnapShot.id,
+      title,
+      description,
+      Video_url,
+    };
+
+    console.log("formdata submited", newTask);
+    // add in store
+    //  dispatch(addTask({ listId, newTask }));
+    setLoading(false);
+  } else {
+    toastErr("BE_addTask: No such document");
+    setLoading(false);
+  }
+};
+
+//Edit Category
+export const BE_EDITCAT = async (
+  dispatch: AppDispatch,
+  setLoading: setLoadingType,
+  catid: string,
+  category: string
+) => {
+  setLoading(true);
+
+  await updateDoc(doc(db, categoryColl, catid), { category });
+
+  const updatedTaskList = await getDoc(doc(db, categoryColl, catid));
+
+  setLoading(false);
+
+  // dispatch to save task list
+  // dispatch(
+  //   saveTaskListTitle({ id: updatedTaskList.id, ...updatedTaskList.data() })
+  // );
+};
+
+//Edit SubCategory
+export const BE_EDITSUBCAT = async (
+  dispatch: AppDispatch,
+  catid: string,
+  subcatid: string,
+  subcategory: string,
+  setLoading: setLoadingType
+) => {
+  setLoading(true);
+
+  if (catid) {
+    const taskRef = doc(db, categoryColl, catid, subCategory, subcatid);
+    await updateDoc(taskRef, { subcategory });
+
+    const updatedTask = await getDoc(taskRef);
+
+    setLoading(false);
+    // dispatch
+  } else toastErr("BE_saveTask: id not found");
+};
+
+//get video details
+export const BE_getVideoDlts = async (
+  //dispatch: AppDispatch,
+  catid: string,
+  subcatid: string,
+  setLoading: setLoadingType
+) => {
+  setLoading(true);
+
+  // get tasks in a single task list
+  const videoRef = collection(
+    db,
+    categoryColl,
+    catid,
+    subCategory,
+    subcatid,
+    subcatvideo
+  );
+  const videosSnapshot = await getDocs(videoRef);
+
+  const videos: videoType[] = [];
+
+  // if the tasks snap shot is not empty then do foreach
+  if (!videosSnapshot.empty) {
+    videosSnapshot.forEach((task) => {
+      console.log("back video", task.data());
+      const { title, description, Video_url } = task.data();
+      videos.push({
+        id: task.id,
+        title,
+        description,
+        Video_url,
+      });
+    });
+  }
+
+  //dispatch(setTaskListTasks({ listId, tasks }));
+  setLoading(false);
+
+  return videos;
 };
